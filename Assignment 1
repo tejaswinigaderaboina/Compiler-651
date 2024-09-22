@@ -1,0 +1,78 @@
+// JConditionalExpression.java
+package jminusminus;
+
+import static jminusminus.CLConstants.*;
+
+public class JConditionalExpression extends JExpression {
+
+    private JExpression condition;
+    private JExpression trueExpr;
+    private JExpression falseExpr;
+
+    // Constructor
+    public JConditionalExpression(int line, JExpression condition, JExpression trueExpr, JExpression falseExpr) {
+        super(line);
+        this.condition = condition;
+        this.trueExpr = trueExpr;
+        this.falseExpr = falseExpr;
+    }
+
+    // Analyze the conditional expression
+    @Override
+    public JExpression analyze(Context context) {
+        condition = (JExpression) condition.analyze(context);
+        condition.type().mustMatchExpected(line(), Type.BOOLEAN);
+
+        trueExpr = (JExpression) trueExpr.analyze(context);
+        falseExpr = (JExpression) falseExpr.analyze(context);
+
+        // Result type should be the same for both expressions
+        if (!trueExpr.type().equals(falseExpr.type())) {
+            JAST.compilationUnit.reportSemanticError(line(),
+                    "The type of the expressions must match");
+        }
+        type = trueExpr.type(); // Resulting type
+        return this;
+    }
+
+    // Generate bytecode for the ternary conditional expression
+    @Override
+    public void codegen(CLEmitter output, String targetLabel, boolean onTrue) {
+        String elseLabel = output.createLabel();
+        String endLabel = output.createLabel();
+
+        condition.codegen(output, elseLabel, false); // If false, go to else
+        trueExpr.codegen(output);
+        output.addBranchInstruction(GOTO, endLabel);
+        output.addLabel(elseLabel);
+        falseExpr.codegen(output);
+        output.addLabel(endLabel);
+    }
+
+    // Writing AST
+    @Override
+    public void writeToStdOut(PrettyPrinter p) {
+        p.printf("<JConditionalExpression line=\"%d\">\n", line());
+        p.indentRight();
+        p.printf("<Condition>\n");
+        p.indentRight();
+        condition.writeToStdOut(p);
+        p.indentLeft();
+        p.printf("</Condition>\n");
+
+        p.printf("<TrueExpression>\n");
+        p.indentRight();
+        trueExpr.writeToStdOut(p);
+        p.indentLeft();
+        p.printf("</TrueExpression>\n");
+
+        p.printf("<FalseExpression>\n");
+        p.indentRight();
+        falseExpr.writeToStdOut(p);
+        p.indentLeft();
+        p.printf("</FalseExpression>\n");
+
+        p.indentLeft();
+        p.printf("</JConditionalExpression>\n");
+    }
+}
